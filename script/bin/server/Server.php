@@ -42,6 +42,7 @@ class Server
         $this->server->addListener(self::HOST, self::LIVE_PORT, SWOOLE_SOCK_TCP);
         $this->server->addListener(self::HOST, self::CHAT_PORT, SWOOLE_SOCK_TCP);
 
+        $this->server->on("start", [$this, 'onStart']);
         $this->server->on("open", [$this, 'onOpen']);
         $this->server->on("message", [$this, 'onMessage']);
         $this->server->on("workerStart", [$this, 'onWorkerStart']);
@@ -51,6 +52,14 @@ class Server
         $this->server->on("close", [$this, 'onClose']);
 
         $this->server->start();
+    }
+
+    /**
+     * @param $server
+     */
+    public function onStart($server)
+    {
+        swoole_set_process_name('live_master');
     }
 
     /**
@@ -112,6 +121,13 @@ class Server
 //        // 加载基础文件
 //        require_once __DIR__ . '/../../../thinkphp/start.php';
 
+        if ('/favicon.ico' == $request->server['request_uri']) {
+            $response->status(404);
+            $response->end();
+
+            return;
+        }
+
         $_SERVER = [];
         if (isset($request->server)) {
             foreach ($request->server as $key => $val) {
@@ -145,6 +161,8 @@ class Server
                 $_POST[$key] = $val;
             }
         }
+
+        $this->writeLog();
 
         $_POST['http_server'] = $this->server;
 //print_r($this->server);
@@ -200,6 +218,31 @@ class Server
     {
 //        Predis::getInstance()->sRem(config('redis.live_game_key'), $fd);
         echo "用户: {$fd} 退出" . PHP_EOL;
+    }
+
+    /**
+     * 记录日志
+     */
+    public function writeLog()
+    {
+        $data = array_merge([
+            'date' => date("Y-m-d H:i:s")
+        ], $_GET, $_POST, $_SERVER);
+
+        $log = '';
+
+        foreach ($data as $key => $value) {
+            $log .= $key . ':' . $value . ' ';
+        }
+
+        swoole_async_writefile(
+            APP_PATH . '../runtime/log/' . date('Ym') . '/' . date('d') . '_access.log',
+            $log . PHP_EOL,
+            function ($filename) {
+                //todo
+            },
+            FILE_APPEND
+        );
     }
 }
 

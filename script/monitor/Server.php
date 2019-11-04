@@ -27,7 +27,7 @@ class Server
 }
 
 // nohup
-swoole_timer_tick(2000, function ($timer_id) {
+swoole_timer_tick(60000, function ($timer_id) {
     (new Server())->port();
     echo "time-start" . PHP_EOL;
 });
